@@ -7,6 +7,7 @@ class StreamDataMocker {
     this.sendTimerId = null;
     this.sendFrameCount = 0;
     this.startTime = null;
+    this.totalSentFrames = 0;
     this.totalReceivedFrames = 0; // 添加变量来统计总帧数
   }
 
@@ -34,7 +35,7 @@ class StreamDataMocker {
     const sendFrames = () => {
       const currentTime = Date.now();
       const elapsedTime = currentTime - this.startTime;
-      let framesPerSend = Math.floor(sampleRate * (elapsedTime / 1000) - this.totalReceivedFrames)
+      let framesPerSend = Math.floor(sampleRate * (elapsedTime / 1000) - this.totalSentFrames)
       let accumulatedData = new Uint8Array(
         framesPerSend * (frameHeader.length + channels * bytesPerChannel + frameFooter.length)
       ); // 累积的数据
@@ -66,9 +67,9 @@ class StreamDataMocker {
       const actualSampleRate = this.sendFrameCount / (elapsedTime / 1000);
 
       // 统计总帧数
-      this.totalReceivedFrames+=framesPerSend;
+      this.totalSentFrames+=framesPerSend;
 
-      console.log(`总发送帧数: ${this.totalReceivedFrames}, 总发送时间: ${elapsedTime / 1000} 秒, 实际发送率: ${actualSampleRate.toFixed(2)} 帧/秒`);
+      console.log(`总发送帧数: ${this.totalSentFrames}, 总发送时间: ${elapsedTime / 1000} 秒, 实际发送率: ${actualSampleRate.toFixed(2)} 帧/秒`);
     };
 
     this.startTime = Date.now();
@@ -122,7 +123,7 @@ streamDataMocker.onData(data => {
     // 计算实际采样率
     const currentTime = Date.now();
     const elapsedTime = currentTime - streamDataMocker.startTime;
-    const actualSampleRate = streamDataMocker.totalReceivedFrames / (elapsedTime / 1000);
+    const actualSampleRate = streamDataMocker.totalSentFrames / (elapsedTime / 1000);
 
     console.log(`总采样帧数: ${streamDataMocker.totalReceivedFrames}, 总采样时间: ${elapsedTime / 1000} 秒, 实际采样率: ${actualSampleRate.toFixed(2)} 帧/秒`);
   }
