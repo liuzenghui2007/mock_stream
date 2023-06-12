@@ -90,8 +90,8 @@ class StreamDataMocker {
 const streamDataMocker = new StreamDataMocker();
 
 streamDataMocker.onData(data => {
-  console.log('dl', data.length)
-  // 解码每一帧数据
+  console.log('Received data:', data.length, data);
+
   const frameHeader = new Uint8Array([
     0xFF, 0xFF, 0xFF, 0xFF, 0x55, 0x55, 0x55, 0x55, 0xAA, 0xAA, 0xAA, 0xAA
   ]); // 帧头
@@ -101,40 +101,55 @@ streamDataMocker.onData(data => {
   const channels = 16; // 通道数量
   const bytesPerChannel = 4; // 每个通道的字节数
 
-  const headerBytes = data.slice(0, frameHeader.length);
-  const footerBytes = data.slice(data.length - frameFooter.length);
-  const channelBytes = data.slice(frameHeader.length, data.length - frameFooter.length);
+  const frames = [];
+  let offset = 0;
+  let headerIndex = data.indexOf(frameHeader, offset);
+  console.log('h', headerIndex)
 
-  const headerMatch = frameHeader.every((value, index) => value === headerBytes[index]);
-  const footerMatch = frameFooter.every((value, index) => value === footerBytes[index]);
+  while (headerIndex !== -1) {
+    // 查找帧尾的索引
+    const footerIndex = data.indexOf(frameFooter, headerIndex + frameHeader.length);
 
-  if (headerMatch && footerMatch && channelBytes.length === channels * bytesPerChannel) {
-    const channelDataView = new DataView(channelBytes.buffer);
-    const channelData = new Float32Array(channels);
-
-    let offset = 0;
-    for (let i = 0; i < channels; i++) {
-      channelData[i] = channelDataView.getFloat32(offset, true); // 解析二进制数据为 Float32
-      offset += bytesPerChannel;
+    if (footerIndex === -1) {
+      console.log('Invalid data: Frame footer not found');
+      break;
     }
 
-    console.log('收到数据:', channelData);
+    // 提取通道数据
+    const frameData = data.slice(headerIndex + frameHeader.length, footerIndex);
+    console.log('ftata', frameData)
+    const expectedDataLength = channels * bytesPerChannel;
+    
+    if (frameData.length === expectedDataLength) {
+      const channelData = new Float32Array(channels);
+      const channelDataView = new DataView(frameData.buffer);
 
-    // 计算实际采样率
-    const currentTime = Date.now();
-    const elapsedTime = currentTime - streamDataMocker.startTime;
-    const actualSampleRate = streamDataMocker.totalSentFrames / (elapsedTime / 1000);
+      for (let i = 0; i < channels; i++) {
+        const channelOffset = i * bytesPerChannel;
+        channelData[i] = channelDataView.getFloat32(channelOffset, true);
+      }
 
-    console.log(`总采样帧数: ${streamDataMocker.totalReceivedFrames}, 总采样时间: ${elapsedTime / 1000} 秒, 实际采样率: ${actualSampleRate.toFixed(2)} 帧/秒`);
+      frames.push(channelData);
+    } else {
+      console.log(`Invalid data: Invalid frame length. Expected length: ${expectedDataLength}, Actual length: ${frameData.length}`);
+    }
+
+    offset = footerIndex + frameFooter.length;
+    headerIndex = data.indexOf(frameHeader, offset);
   }
+
+  // 打印解析的数据
+  console.log('Received frames:', frames);
 });
+
+
 
 streamDataMocker.onEnd(() => {
   // 数据流结束时的处理
   console.log('数据流结束');
 });
 
-streamDataMocker.startStream(100000, 100); // 采样率为 1000 帧/秒，发送间隔为 100 毫秒
+streamDataMocker.startStream(1, 1000); // 采样率为 1000 帧/秒，发送间隔为 100 毫秒
 
 // 模拟运行一段时间后停止数据流
 // setTimeout(() => {
