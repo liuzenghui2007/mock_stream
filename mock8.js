@@ -28,12 +28,16 @@ class StreamDataMocker {
       0x00, 0x00, 0x00, 0x00, 0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55
     ]); // 帧尾
 
-    const framesPerSend = sampleRate * (sendInterval / 1000); // 每次发送的数据帧数
-    let accumulatedData = new Uint8Array(
-      framesPerSend * (frameHeader.length + channels * bytesPerChannel + frameFooter.length)
-    ); // 累积的数据
+
+
 
     const sendFrames = () => {
+      const currentTime = Date.now();
+      const elapsedTime = currentTime - this.startTime;
+      let framesPerSend = Math.floor(sampleRate * (elapsedTime / 1000) - this.totalReceivedFrames)
+      let accumulatedData = new Uint8Array(
+        framesPerSend * (frameHeader.length + channels * bytesPerChannel + frameFooter.length)
+      ); // 累积的数据
       let offset = 0;
       for (let i = 0; i < framesPerSend; i++) {
         // 填充帧头
@@ -58,8 +62,7 @@ class StreamDataMocker {
       this.listeners.data.forEach(callback => callback(accumulatedData)); // 触发 data 事件
       this.sendFrameCount += framesPerSend;
 
-      const currentTime = Date.now();
-      const elapsedTime = currentTime - this.startTime;
+
       const actualSampleRate = this.sendFrameCount / (elapsedTime / 1000);
 
       // 统计总帧数
@@ -130,7 +133,7 @@ streamDataMocker.onEnd(() => {
   console.log('数据流结束');
 });
 
-streamDataMocker.startStream(1000, 1000); // 采样率为 1000 帧/秒，发送间隔为 100 毫秒
+streamDataMocker.startStream(100000, 100); // 采样率为 1000 帧/秒，发送间隔为 100 毫秒
 
 // 模拟运行一段时间后停止数据流
 // setTimeout(() => {
