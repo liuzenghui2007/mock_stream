@@ -92,7 +92,8 @@ function findUint8ArrayPosition(source, target, offset = 0) {
     throw new Error('Both arguments must be Uint8Array.');
   }
 
-  if (offset < 0 || offset >= source.length) {
+  if (offset < 0 || offset > source.length) {
+    console.log('offff', offset, source.length)
     throw new Error('Invalid offset.');
   }
 
@@ -119,7 +120,7 @@ function findUint8ArrayPosition(source, target, offset = 0) {
 const streamDataMocker = new StreamDataMocker();
 
 streamDataMocker.onData(data => {
-  console.log('Received data:', data.length, data);
+  console.log('Received data:', data.length);
 
   const frameHeader = new Uint8Array([
     0xFF, 0xFF, 0xFF, 0xFF, 0x55, 0x55, 0x55, 0x55, 0xAA, 0xAA, 0xAA, 0xAA
@@ -133,12 +134,11 @@ streamDataMocker.onData(data => {
   const frames = [];
   let offset = 0;
   let headerIndex = findUint8ArrayPosition(data, frameHeader, offset);
-  console.log('h', headerIndex)
 
-  while (headerIndex !== -1) {
+  while (headerIndex !== -1 && headerIndex < data.length) {
     // 查找帧尾的索引
     const footerIndex = findUint8ArrayPosition(data, frameFooter, headerIndex + frameHeader.length);
-
+    console.log('headerIndez',headerIndex, 'footter', footerIndex)
     if (footerIndex === -1) {
       console.log('Invalid data: Frame footer not found');
       break;
@@ -146,7 +146,7 @@ streamDataMocker.onData(data => {
 
     // 提取通道数据
     const frameData = data.slice(headerIndex + frameHeader.length, footerIndex);
-    console.log('ftata', frameData)
+    console.log('frameData length', frameData.length)
     const expectedDataLength = channels * bytesPerChannel;
     
     if (frameData.length === expectedDataLength) {
@@ -164,11 +164,12 @@ streamDataMocker.onData(data => {
     }
 
     offset = footerIndex + frameFooter.length;
-    headerIndex = data.indexOf(frameHeader, offset);
+    console.log('oo',offset)
+    headerIndex = findUint8ArrayPosition(data, frameHeader, offset);
   }
 
   // 打印解析的数据
-  console.log('Received frames:', frames);
+  console.log('Received frames:', frames.length);
 });
 
 
