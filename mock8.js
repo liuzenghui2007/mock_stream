@@ -120,7 +120,7 @@ function findUint8ArrayPosition(source, target, offset = 0) {
 const streamDataMocker = new StreamDataMocker();
 
 streamDataMocker.onData(data => {
-  console.log('Received data:', data.length);
+  // console.log('Received data:', data.length);
 
   const frameHeader = new Uint8Array([
     0xFF, 0xFF, 0xFF, 0xFF, 0x55, 0x55, 0x55, 0x55, 0xAA, 0xAA, 0xAA, 0xAA
@@ -138,7 +138,7 @@ streamDataMocker.onData(data => {
   while (headerIndex !== -1 && headerIndex < data.length) {
     // 查找帧尾的索引
     const footerIndex = findUint8ArrayPosition(data, frameFooter, headerIndex + frameHeader.length);
-    console.log('headerIndez',headerIndex, 'footter', footerIndex)
+    // console.log('headerIndex',headerIndex, 'footter', footerIndex)
     if (footerIndex === -1) {
       console.log('Invalid data: Frame footer not found');
       break;
@@ -146,7 +146,7 @@ streamDataMocker.onData(data => {
 
     // 提取通道数据
     const frameData = data.slice(headerIndex + frameHeader.length, footerIndex);
-    console.log('frameData length', frameData.length)
+    // console.log('frameData length', frameData.length)
     const expectedDataLength = channels * bytesPerChannel;
     
     if (frameData.length === expectedDataLength) {
@@ -164,7 +164,7 @@ streamDataMocker.onData(data => {
     }
 
     offset = footerIndex + frameFooter.length;
-    console.log('oo',offset)
+    // console.log('oo',offset)
     headerIndex = findUint8ArrayPosition(data, frameHeader, offset);
   }
 
@@ -179,7 +179,7 @@ streamDataMocker.onEnd(() => {
   console.log('数据流结束');
 });
 
-streamDataMocker.startStream(2, 1000); // 采样率为 1000 帧/秒，发送间隔为 100 毫秒
+streamDataMocker.startStream(200, 1000); // 采样率为 1000 帧/秒，发送间隔为 100 毫秒
 
 // 模拟运行一段时间后停止数据流
 // setTimeout(() => {
