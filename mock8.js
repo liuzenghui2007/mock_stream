@@ -170,6 +170,8 @@ streamDataMocker.onData(data => {
 
   // 打印解析的数据
   console.log('Received frames:', frames.length);
+  streamDataMocker.totalReceivedFrames += frames.length
+  console.log(`总接收帧数: ${streamDataMocker.totalReceivedFrames},`);
 });
 
 
