@@ -1,9 +1,21 @@
+const channels = 16; // 通道数量
+const bytesPerChannel = 4; // 每个通道的字节数
+const frameHeader = new Uint8Array([
+  0xFF, 0xFF, 0xFF, 0xFF, 0x55, 0x55, 0x55, 0x55, 0xAA, 0xAA, 0xAA, 0xAA
+]); // 帧头
+const frameFooter = new Uint8Array([
+  0x00, 0x00, 0x00, 0x00, 0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55
+]); // 帧尾
+
 class StreamDataMocker {
   constructor() {
     this.listeners = {
       data: [],
       end: [],
+      dataResolved: [], // 新增的事件监听器
     };
+
+
     this.sendTimerId = null;
     this.sendFrameCount = 0;
     this.startTime = null;
@@ -19,19 +31,11 @@ class StreamDataMocker {
     this.listeners.end.push(callback);
   }
 
+  onDataResolved(callback) {
+    this.listeners.dataResolved.push(callback);
+  }
+
   startStream(sampleRate, sendInterval) {
-    const channels = 16; // 通道数量
-    const bytesPerChannel = 4; // 每个通道的字节数
-    const frameHeader = new Uint8Array([
-      0xFF, 0xFF, 0xFF, 0xFF, 0x55, 0x55, 0x55, 0x55, 0xAA, 0xAA, 0xAA, 0xAA
-    ]); // 帧头
-    const frameFooter = new Uint8Array([
-      0x00, 0x00, 0x00, 0x00, 0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55
-    ]); // 帧尾
-
-
-
-
     const sendFrames = () => {
       const currentTime = Date.now();
       const elapsedTime = currentTime - this.startTime;
@@ -69,7 +73,7 @@ class StreamDataMocker {
       // 统计总帧数
       this.totalSentFrames+=framesPerSend;
 
-      console.log(`总发送帧数: ${this.totalSentFrames}, 总发送时间: ${elapsedTime / 1000} 秒, 实际发送率: ${actualSampleRate.toFixed(2)} 帧/秒`);
+      // console.log(`总发送帧数: ${this.totalSentFrames}, 总发送时间: ${elapsedTime / 1000} 秒, 实际发送率: ${actualSampleRate.toFixed(2)} 帧/秒`);
     };
 
     this.startTime = Date.now();
@@ -122,15 +126,6 @@ const streamDataMocker = new StreamDataMocker();
 streamDataMocker.onData(data => {
   // console.log('Received data:', data.length);
 
-  const frameHeader = new Uint8Array([
-    0xFF, 0xFF, 0xFF, 0xFF, 0x55, 0x55, 0x55, 0x55, 0xAA, 0xAA, 0xAA, 0xAA
-  ]); // 帧头
-  const frameFooter = new Uint8Array([
-    0x00, 0x00, 0x00, 0x00, 0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55
-  ]); // 帧尾
-  const channels = 16; // 通道数量
-  const bytesPerChannel = 4; // 每个通道的字节数
-
   const frames = [];
   let offset = 0;
   let headerIndex = findUint8ArrayPosition(data, frameHeader, offset);
@@ -145,6 +140,7 @@ streamDataMocker.onData(data => {
     }
 
     // 提取通道数据
+
     const frameData = data.slice(headerIndex + frameHeader.length, footerIndex);
     // console.log('frameData length', frameData.length)
     const expectedDataLength = channels * bytesPerChannel;
@@ -169,9 +165,12 @@ streamDataMocker.onData(data => {
   }
 
   // 打印解析的数据
-  console.log('Received frames:', frames.length);
+  // console.log('Received frames:', frames.length);
   streamDataMocker.totalReceivedFrames += frames.length
-  console.log(`总接收帧数: ${streamDataMocker.totalReceivedFrames},`);
+  const elapsedTime = Date.now() - streamDataMocker.startTime;
+  console.log(`总接收帧数: ${streamDataMocker.totalReceivedFrames},`, `总时间${elapsedTime}`, `采样率${(streamDataMocker.totalReceivedFrames/(elapsedTime/1000)).toFixed(2)} 帧/秒`);
+   // 触发 onDataResolved 事件并传递解析后的数据
+  streamDataMocker.listeners.dataResolved.forEach(callback => callback(frames));
 });
 
 
@@ -181,9 +180,8 @@ streamDataMocker.onEnd(() => {
   console.log('数据流结束');
 });
 
-streamDataMocker.startStream(200, 1000); // 采样率为 1000 帧/秒，发送间隔为 100 毫秒
+streamDataMocker.onDataResolved((resolvedData)=> console.log('resolved frames', resolvedData.length))
 
-// 模拟运行一段时间后停止数据流
-// setTimeout(() => {
-//   streamDataMocker.stopStream();
-// }, 5000); // 5 秒后停止数据流
+// streamDataMocker.startStream(1000, 1000); // 采样率为 1000 帧/秒，发送间隔为 1000 毫秒
+
+export {streamDataMocker}
